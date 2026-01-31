@@ -162,28 +162,28 @@ class ChessViz:
                     self.chess_board.play_move(move)
                     self.turn = Player.Black
 
-                    print(f"white bot: {move[0]} -> {move[1]}")
+                    print(f"white bot: {move[1]} -> {move[2]}")
                 elif self.click_2 != None:
                     move = (Move.Normal, self.click_1, self.click_2)
                     self.click_1, self.click_2 = None, None
                     self.chess_board.play_move(move)
                     self.turn = Player.Black
 
-                    print(f"user: {move[0]} -> {move[1]}")
+                    print(f"user: {move[1]} -> {move[2]}")
             else:
                 if self.player_black != None:
                     move = self.player_black(self.chess_board.board)
                     self.chess_board.play_move(move)
                     self.turn = Player.White
 
-                    print(f"black bot: {move[0]} -> {move[1]}")
+                    print(f"black bot: {move[1]} -> {move[2]}")
                 elif self.click_2 != None:
                     move = (Move.Normal, self.click_1, self.click_2)
                     self.click_1, self.click_2 = None, None
                     self.chess_board.play_move(move)
                     self.turn = Player.White
 
-                    print(f"user: {move[0]} -> {move[1]}")
+                    print(f"user: {move[1]} -> {move[2]}")
 
             self.draw_board()
             pygame.display.update()
