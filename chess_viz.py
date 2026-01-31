@@ -208,13 +208,14 @@ class ChessViz:
 
 def bot(board):
     new_board = transform_board(board)
-    board_str = ' '.join([' '.join([str(p) for p in r]) for r in new_board])
-    r = subprocess.call(BOT_EXE + ' ' + board_str, stdin=None, stdout=None, stderr=None, shell=True)
-    return (Move.Normal, (1, 0), (2, 0))
+    board_str = ' '.join([' '.join([str(p).zfill(2) for p in r]) for r in new_board])
+    r = str(subprocess.call(BOT_EXE + ' ' + board_str, stdin=None, stdout=None, stderr=None, shell=True))[1:]
+    move = ((int(r[0]), int(r[1])), (int(r[2]), int(r[3])))
+    return (Move.Normal, *move)
 
 
 def main():
-    viz = ChessViz(START_BOARD, None, None)
+    viz = ChessViz(START_BOARD, bot, None)
     viz.start_game()
     # print(bot(viz.chess_board.board))
 
