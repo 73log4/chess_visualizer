@@ -4,7 +4,7 @@ from itertools import product
 import subprocess
 
 
-BOT_EXE = "echo"
+BOT_EXE = "bot"
 
 
 BLACK_SQUARE_COLOR = (170, 170, 170)
@@ -161,21 +161,29 @@ class ChessViz:
                     move = self.player_white(self.chess_board.board)
                     self.chess_board.play_move(move)
                     self.turn = Player.Black
+
+                    print(f"white bot: {move[0]} -> {move[1]}")
                 elif self.click_2 != None:
                     move = (Move.Normal, self.click_1, self.click_2)
                     self.click_1, self.click_2 = None, None
                     self.chess_board.play_move(move)
                     self.turn = Player.Black
+
+                    print(f"user: {move[0]} -> {move[1]}")
             else:
                 if self.player_black != None:
                     move = self.player_black(self.chess_board.board)
                     self.chess_board.play_move(move)
                     self.turn = Player.White
+
+                    print(f"black bot: {move[0]} -> {move[1]}")
                 elif self.click_2 != None:
                     move = (Move.Normal, self.click_1, self.click_2)
                     self.click_1, self.click_2 = None, None
                     self.chess_board.play_move(move)
                     self.turn = Player.White
+
+                    print(f"user: {move[0]} -> {move[1]}")
 
             self.draw_board()
             pygame.display.update()
