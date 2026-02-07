@@ -10,11 +10,17 @@ BOT_EXE = "bot"
 BLACK_SQUARE_COLOR = (170, 170, 170)
 WHITE_SQUARE_COLOR = (225, 225, 225)
 
-CLICK_1_WHITE_COLOR = (130, 130, 200)
-CLICK_1_BLACK_COLOR = (130, 130, 200)
+CLICK_1_WHITE_COLOR = (50 + 7, 50 + 95, 50 + 90)
+CLICK_1_BLACK_COLOR = (50 + 7, 50 + 95, 50 + 90)
+
+WHITE_POSSIBLE_MOVE_COLOR = (50 + 7, 50 + 95, 50 + 90)
+BLACK_POSSIBLE_MOVE_COLOR = WHITE_POSSIBLE_MOVE_COLOR
 
 SCREEN_SIZE = (600, 600)
 SQUARE_SIZE = SCREEN_SIZE[0] // 8
+
+POSSIBLE_MOVE_CIRCLE_RADIUS_EMPTY = SQUARE_SIZE // 6
+POSSIBLE_MOVE_CIRCLE_RADIUS_NON_EMPTY = SQUARE_SIZE // 2 - 5
 
 
 class Piece(Enum):
@@ -32,19 +38,27 @@ class Piece(Enum):
     WQ = 10
     WN = 11
 
+    def player(self):
+        if self == Piece.Empty:
+            return None
+        return Player.Black if self in [Piece.BP, Piece.BN, Piece.BB, Piece.BR, Piece.BQ, Piece.BK] else Player.White 
+
 
 class Player(Enum):
     Black = 0
     White = 1
 
 
-class Move(Enum):
+class MoveType(Enum):
     Normal = 0
     CastleRight = 1
     CastleLeft = 2
     PromotionQueen = 3
     PromotionKnight = 4
     EnPassant = 5
+
+    def __str__(self):
+        return "-"
 
 
 INT_PIECE_FORMAT = {
@@ -101,25 +115,182 @@ def transform_board(board):
         return [[INT_PIECE_FORMAT[p] for p in r] for r in board]
 
 
+class Vec2:
+
+    def __init__(self, i, j):
+        self.i = i
+        self.j = j
+
+    def __str__(self):
+        return f"({self.i}, {self.j})"
+
+    def __add__(self, other):
+        return Vec2(self.i + other.i, self.j + other.j)
+
+    def is_legal(self):
+        return abs(self.i - 3.5) < 4 and abs(self.j - 3.5) < 4  # ya, thats bad coding
+
+
+VERTICAL_DIRECTIONS = [Vec2(1, 0), Vec2(0, 1), Vec2(-1, 0), Vec2(0, -1)]
+DIAGONAL_DIRECTIONS = [Vec2(1, 1), Vec2(-1, 1), Vec2(1, -1), Vec2(-1, -1)]
+KNIGHT_DIRECTIONS = [Vec2(2, 1), Vec2(2, -1), Vec2(-2, 1), Vec2(-2, -1), Vec2(1, 2), Vec2(1, -2), Vec2(-1, 2), Vec2(-1, -2)]
+ALL_POS = [Vec2(i, j) for i, j in product(range(8), repeat=2)]
+
+
+class Move:
+
+    def __init__(self, t: MoveType, p1: Vec2, p2: Vec2):
+        self.type = t
+        self.src = p1
+        self.dst = p2
+
+    def __str__(self):
+        return f"({self.type}, {self.src}, {self.dst})"
+
+
 class ChessBoard:
 
     def __init__(self, start_board):
         self.board = start_board
 
-    def __setitem__(self, index, value):
-        self.board[index[0]][index[1]] = value
+    def __setitem__(self, pos: Vec2, value):
+        self.board[pos.i][pos.j] = value
 
-    def __getitem__(self, index):
-        return self.board[index[0]][index[1]]
+    def __getitem__(self, pos: Vec2):
+        return self.board[pos.i][pos.j]
 
-    def play_move(self, move):
+    def play_move(self, move: Move):
         # move is a 3 tuple: (type, src, dst)
-        self[move[2]] = self[move[1]]
-        self[move[1]] = Piece.Empty
+        self[move.dst] = self[move.src]
+        self[move.src] = Piece.Empty
 
-    def possible_moves(self, pos):
+    def reverse_move(self, move: Move):
+        # move is a 3 tuple: (type, src, dst)
         pass
 
+    def possible_moves(self, pos: Vec2, player: Player):
+        p = self[pos]
+
+        if p == Piece.Empty:
+            return []
+        elif p == Piece.WK and player == Player.White:
+            return self.k_possible_moves(pos, player)
+        elif p == Piece.BK and player == Player.Black:
+            return self.k_possible_moves(pos, player)
+        elif p == Piece.WQ and player == Player.White:
+            return self.q_possible_moves(pos, player)
+        elif p == Piece.BQ and player == Player.Black:
+            return self.q_possible_moves(pos, player)
+        elif p == Piece.WR and player == Player.White:
+            return self.r_possible_moves(pos, player)
+        elif p == Piece.BR and player == Player.Black:
+            return self.r_possible_moves(pos, player)
+        elif p == Piece.WB and player == Player.White:
+            return self.b_possible_moves(pos, player)
+        elif p == Piece.BB and player == Player.Black:
+            return self.b_possible_moves(pos, player)
+        elif p == Piece.WN and player == Player.White:
+            return self.n_possible_moves(pos, player)
+        elif p == Piece.BN and player == Player.Black:
+            return self.n_possible_moves(pos, player)
+        elif p == Piece.WP and player == Player.White:
+            return self.p_possible_moves(pos, player)
+        elif p == Piece.BP and player == Player.Black:
+            return self.p_possible_moves(pos, player)
+        
+        return []
+
+    def k_possible_moves(self, pos: Vec2, player: Player):
+        moves = []
+
+        for d in VERTICAL_DIRECTIONS + DIAGONAL_DIRECTIONS:
+            p = pos + d
+            if p.is_legal() and self[p].player() != player:
+                m = Move(MoveType.Normal, pos, p)
+                moves.append(m)
+
+        return moves
+
+    def q_possible_moves(self, pos: Vec2, player: Player):
+        moves = []
+
+        for d in VERTICAL_DIRECTIONS + DIAGONAL_DIRECTIONS:
+            p = pos + d
+            while p.is_legal() and self[p] == Piece.Empty:
+                if p.is_legal():
+                    m = Move(MoveType.Normal, pos, p)
+                    moves.append(m)
+                p = p + d
+            if p.is_legal() and self[p].player() != player:
+                m = Move(MoveType.Normal, pos, p)
+                moves.append(m)
+
+        return moves
+
+    def r_possible_moves(self, pos: Vec2, player: Player):
+        moves = []
+
+        for d in VERTICAL_DIRECTIONS:
+            p = pos + d
+            while p.is_legal() and self[p] == Piece.Empty:
+                if p.is_legal():
+                    m = Move(MoveType.Normal, pos, p)
+                    moves.append(m)
+                p = p + d
+            if p.is_legal() and self[p].player() != player:
+                m = Move(MoveType.Normal, pos, p)
+                moves.append(m)
+
+        return moves
+
+    def b_possible_moves(self, pos: Vec2, player: Player):
+        moves = []
+
+        for d in DIAGONAL_DIRECTIONS:
+            p = pos + d
+            while p.is_legal() and self[p] == Piece.Empty:
+                if p.is_legal():
+                    m = Move(MoveType.Normal, pos, p)
+                    moves.append(m)
+                p = p + d
+            if p.is_legal() and self[p].player() != player:
+                m = Move(MoveType.Normal, pos, p)
+                moves.append(m)
+
+        return moves
+
+    def n_possible_moves(self, pos, player: Player):
+        moves = []
+
+        for d in KNIGHT_DIRECTIONS:
+            p = pos + d
+            if p.is_legal() and self[p].player() != player:
+                m = Move(MoveType.Normal, pos, p)
+                moves.append(m)
+        return moves
+
+    def p_possible_moves(self, pos, player: Player):
+        moves = []
+
+        d = Vec2(1, 0) if player == Player.White else Vec2(-1, 0)
+        if self[pos + d] == Piece.Empty:
+            moves.append(Move(MoveType.Normal, pos, pos + d))
+            if self[(pos + d) + d] == Piece.Empty and (pos.i == (1 if player == Player.White else 6)):
+                moves.append(Move(MoveType.Normal, pos, pos + d + d))
+
+        new_p = pos + (Vec2(1, 1) if player == Player.White else Vec2(-1, 1))
+        if new_p.is_legal():
+            piece = self[new_p]
+            if piece.player() != None and piece.player() != player:
+                moves.append(Move(MoveType.Normal, pos, new_p))
+
+        new_p = pos + (Vec2(1, -1) if player == Player.White else Vec2(-1, -1))
+        if new_p.is_legal():
+            piece = self[new_p]
+            if piece.player() != None and piece.player() != player:
+                moves.append(Move(MoveType.Normal, pos, new_p))
+
+        return moves
 
 class ChessViz:
 
@@ -134,8 +305,11 @@ class ChessViz:
         self.click_1 = None
         self.click_2 = None
 
+        self.possible_moves = []
+
     def start_game(self):
         pygame.init()
+        pygame.display.set_caption('ChessMonster Visualizer')
 
         self.screen = pygame.display.set_mode(SCREEN_SIZE)
         self.draw_board()
@@ -150,40 +324,51 @@ class ChessViz:
                     pos = (7 - pos[1] // SQUARE_SIZE, pos[0] // SQUARE_SIZE)
                     if self.click_1 == None:
                         self.click_1 = pos
+                        self.possible_moves = self.chess_board.possible_moves(Vec2(*pos), self.turn)
                     elif self.click_2 == None:
                         if self.click_1 == pos:
                             self.click_1 = None
+                            self.possible_moves = []
                         else:
-                            self.click_2 = pos
+                            possible_dst = [(m.dst.i, m.dst.j) for m in self.possible_moves]
+                            if pos in possible_dst:
+                                self.click_2 = pos
+                            else:
+                                self.click_1 = None
+                                self.possible_moves = []
                     
             if self.turn == Player.White:
-                if self.player_white != None:
+                played = True
+                if self.player_white != None:  # bot
                     move = self.player_white(self.chess_board.board)
-                    self.chess_board.play_move(move)
-                    self.turn = Player.Black
-
-                    print(f"white bot: {move[1]} -> {move[2]}")
-                elif self.click_2 != None:
-                    move = (Move.Normal, self.click_1, self.click_2)
+                elif self.click_2 != None:  # user input
+                    move = Move(MoveType.Normal, Vec2(*self.click_1), Vec2(*self.click_2))
                     self.click_1, self.click_2 = None, None
+                else:
+                    played = False
+
+                if played:
                     self.chess_board.play_move(move)
                     self.turn = Player.Black
+                    self.possible_moves = []
 
-                    print(f"user: {move[1]} -> {move[2]}")
+                    print(f"white: {move.src} -> {move.dst}")
             else:
-                if self.player_black != None:
+                played = True
+                if self.player_black != None:  # bot
                     move = self.player_black(self.chess_board.board)
-                    self.chess_board.play_move(move)
-                    self.turn = Player.White
-
-                    print(f"black bot: {move[1]} -> {move[2]}")
-                elif self.click_2 != None:
-                    move = (Move.Normal, self.click_1, self.click_2)
+                elif self.click_2 != None:  # user input
+                    move = Move(MoveType.Normal, Vec2(*self.click_1), Vec2(*self.click_2))
                     self.click_1, self.click_2 = None, None
+                else:
+                    played = False
+
+                if played:
                     self.chess_board.play_move(move)
                     self.turn = Player.White
+                    self.possible_moves = []
 
-                    print(f"user: {move[1]} -> {move[2]}")
+                    print(f"black: {move.src} -> {move.dst}")
 
             self.draw_board()
             pygame.display.update()
@@ -206,10 +391,18 @@ class ChessViz:
                         color = BLACK_SQUARE_COLOR
                 pygame.draw.rect(self.screen, color, square)
 
+        # draw possible moves
+        move_dst = [(m.dst.i, m.dst.j) for m in self.possible_moves]
+        for pos in move_dst:
+            center = (pos[1] * SQUARE_SIZE + SQUARE_SIZE // 2, (7 - pos[0]) * SQUARE_SIZE + SQUARE_SIZE // 2)
+            color = WHITE_POSSIBLE_MOVE_COLOR if (pos[0] + pos[1]) % 2 == 0 else BLACK_POSSIBLE_MOVE_COLOR
+            radius = POSSIBLE_MOVE_CIRCLE_RADIUS_EMPTY if self.chess_board[Vec2(*pos)] == Piece.Empty else POSSIBLE_MOVE_CIRCLE_RADIUS_NON_EMPTY
+            pygame.draw.circle(self.screen, color , center, radius)
+
         # draw pieces
         for i in range(8):
             for j in range(8):
-                piece = self.chess_board[7 - i, j]
+                piece = self.chess_board[Vec2(7 - i, j)]
                 if piece != Piece.Empty:
                     self.screen.blit(PIECE_IMG[piece], (j * SQUARE_SIZE, i * SQUARE_SIZE))
 
@@ -219,11 +412,11 @@ def bot(board):
     board_str = ' '.join([' '.join([str(p).zfill(2) for p in r]) for r in new_board])
     r = str(subprocess.call(BOT_EXE + ' ' + board_str, stdin=None, stdout=None, stderr=None, shell=True))[1:]
     move = ((int(r[0]), int(r[1])), (int(r[2]), int(r[3])))
-    return (Move.Normal, *move)
+    return Move(MoveType.Normal, Vec2(*move[0]), Vec2(*move[1]))
 
 
 def main():
-    viz = ChessViz(START_BOARD, bot, None)
+    viz = ChessViz(START_BOARD, None, None)
     viz.start_game()
     # print(bot(viz.chess_board.board))
 
