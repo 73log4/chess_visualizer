@@ -436,7 +436,7 @@ class ChessBoard:
         if new_p.is_legal():
             piece = self[new_p]
             if piece.player() != None and piece.player() != player:
-                if new_p.j not in [0, 7]:
+                if new_p.i not in [0, 7]:
                     moves.append(Move(MoveType.Normal, pos, new_p))
                 else:
                     moves.append(Move(MoveType.PromotionQueen, pos, new_p))
@@ -445,7 +445,7 @@ class ChessBoard:
         if new_p.is_legal():
             piece = self[new_p]
             if piece.player() != None and piece.player() != player:
-                if new_p.j not in [0, 7]:
+                if new_p.i not in [0, 7]:
                     moves.append(Move(MoveType.Normal, pos, new_p))
                 else:
                     moves.append(Move(MoveType.PromotionQueen, pos, new_p))
