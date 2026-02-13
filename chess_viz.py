@@ -5,7 +5,7 @@ import subprocess
 from copy import deepcopy
 
 
-BOT_EXE = "echo"
+BOT_EXE = "bot"
 
 
 BLACK_SQUARE_COLOR = (170, 170, 170)
@@ -581,7 +581,10 @@ def bot(board, player: Player):
     board_str = ' '.join([' '.join([str(p).zfill(2) for p in r]) for r in new_board])
     r = str(subprocess.call(BOT_EXE + ' ' + board_str, stdin=None, stdout=None, stderr=None, shell=True))[1:]
     print(f"        bit output: {r}")
-    move = ((7 - int(r[0]), int(r[1])), (7 - int(r[2]), int(r[3])))
+    if player.is_white():
+        move = ((7 - int(r[0]), int(r[1])), (7 - int(r[2]), int(r[3])))
+    else:
+        move = ((int(r[0]), int(r[1])), (int(r[2]), int(r[3])))
     return Move(MoveType.Normal, Vec2(*move[0]), Vec2(*move[1]))
 
 
